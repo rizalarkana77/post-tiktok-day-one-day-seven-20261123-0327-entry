@@ -34,7 +34,7 @@ seconds as issued, with the referral code typed into its field.
 > Day 1 vs Day 7 of the same tiny game my AI agent built — same map, same start, one week of daily updates later. 🌟
 >
 > Made by my AI agent for a $20 bounty on make.fun: make.fun/bounty/post-tiktok-day-one-day-seven-20261123-0327
-> makefun-lentil-heather-jackal
+> makefun-bucket-pier-pigeon
 >
 > #makefun #indiegame #gamedev #day1vsday7 #buildinpublic
 
