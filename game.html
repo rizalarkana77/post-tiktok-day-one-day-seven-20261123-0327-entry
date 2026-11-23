@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Star Catcher — day one vs day seven</title>
+<style>
+  body { margin: 0; background: #191419; display: grid; place-items: center; height: 100vh;
+         font-family: system-ui, sans-serif; color: #fff; }
+  canvas { border: 2px solid #c41c83; }
+  p { text-align: center; }
+  kbd { background: #333; padding: 2px 8px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div>
+  <canvas id="game" width="576" height="1024"></canvas>
+  <p>Press <kbd>1</kbd> for day one &nbsp;·&nbsp; <kbd>7</kbd> for day seven &nbsp;·&nbsp; move with mouse or arrow keys</p>
+</div>
+<script>
+// Star Catcher: a tiny canvas catcher game. Same map, same start, every run.
+// Day 1: flat sky, stars only, bare score. Day 7: dusk sky, moon, clouds, hills,
+// stars + gems + hearts, combo meter, progress bar, particles, floating +points.
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let rich = false;           // false = day one, true = day seven
+let px = 288, score = 0, combo = 0, caught = 0;
+let items = [], parts = [], floats = [], t = 0, nextSpawn = 0;
+let seed = 20261123;
+function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+function spawn() {
+  const kinds = rich ? ['star', 'star', 'star', 'gem', 'gem', 'heart'] : ['star'];
+  items.push({ x: 50 + rnd() * 476, y: -30, kind: kinds[Math.floor(rnd() * kinds.length)],
+               vy: rich ? 190 + rnd() * 40 : 130 + rnd() * 25, ph: rnd() * 6.28 });
+}
+function star(x, y, r, color) {
+  ctx.fillStyle = color; ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 === 0 ? r : r * 0.45;
+    ctx[i === 0 ? 'moveTo' : 'lineTo'](x + rr * Math.cos(a), y + rr * Math.sin(a));
+  }
+  ctx.closePath(); ctx.fill();
+}
+function step(dt) {
+  t += dt;
+  const interval = rich ? 0.28 : 0.55;
+  while (nextSpawn <= t) { spawn(); nextSpawn += interval; }
+  for (const it of items) {
+    it.y += it.vy * dt;
+    if (rich) it.x += 26 * Math.sin(t * 2 + it.ph) * dt;
+    if (it.y > 930 && Math.abs(it.x - px) < 62) {
+      items.splice(items.indexOf(it), 1); caught++; combo++;
+      const pts = { star: 10, gem: 25, heart: 50 }[it.kind];
+      const mult = rich ? 1 + Math.min(combo, 8) / 4 | 0 : 1;
+      score += pts * mult;
+      if (rich) {
+        for (let i = 0; i < 10; i++) {
+          const a = rnd() * 6.28, sp = 40 + rnd() * 120;
+          parts.push({ x: it.x, y: 930, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: 0.6 });
+        }
+        floats.push({ x: it.x, y: 900, text: '+' + pts * mult, life: 0.9 });
+      }
+    } else if (it.y > 1064) { items.splice(items.indexOf(it), 1); combo = 0; }
+  }
+  for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 320 * dt; p.life -= dt; }
+  parts = parts.filter(p => p.life > 0);
+  for (const f of floats) { f.y -= 55 * dt; f.life -= dt; }
+  floats = floats.filter(f => f.life > 0);
+}
+function draw() {
+  if (rich) {
+    const g = ctx.createLinearGradient(0, 0, 0, 1024);
+    g.addColorStop(0, '#1a0b2e'); g.addColorStop(1, '#7a1c83');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 576, 1024);
+    ctx.fillStyle = '#fff0c8'; ctx.beginPath(); ctx.arc(470, 130, 40, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    for (const [cx, cy, cw] of [[120, 180, 150], [330, 120, 180], [470, 260, 130]]) {
+      ctx.beginPath(); ctx.ellipse(cx + cw / 2, cy + 17, cw / 2, 17, 0, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = '#1e783c';
+    ctx.beginPath(); ctx.moveTo(0, 980); ctx.lineTo(150, 955); ctx.lineTo(300, 985);
+    ctx.lineTo(430, 950); ctx.lineTo(576, 980); ctx.lineTo(576, 1024); ctx.lineTo(0, 1024); ctx.fill();
+  } else {
+    ctx.fillStyle = '#2b3a55'; ctx.fillRect(0, 0, 576, 1024);
+    ctx.fillStyle = '#969eb9';
+    for (let i = 0; i < 24; i++) ctx.fillRect((i * 137) % 576, (i * 89) % 700 + 60, 3, 3);
+    ctx.fillStyle = '#1e222c'; ctx.fillRect(0, 990, 576, 34);
+  }
+  for (const it of items) {
+    if (it.kind === 'star') star(it.x, it.y, 26, '#ffd640');
+    else if (it.kind === 'gem') {
+      ctx.fillStyle = '#40e0ff';
+      ctx.beginPath(); ctx.moveTo(it.x, it.y - 24); ctx.lineTo(it.x + 17, it.y);
+      ctx.lineTo(it.x, it.y + 24); ctx.lineTo(it.x - 17, it.y); ctx.closePath(); ctx.fill();
+    } else {
+      ctx.fillStyle = '#ff5a8c';
+      ctx.beginPath(); ctx.arc(it.x - 11, it.y - 8, 12, 0, 7); ctx.arc(it.x + 11, it.y - 8, 12, 0, 7);
+      ctx.fill(); ctx.beginPath(); ctx.moveTo(it.x - 22, it.y - 2);
+      ctx.lineTo(it.x + 22, it.y - 2); ctx.lineTo(it.x, it.y + 22); ctx.closePath(); ctx.fill();
+    }
+  }
+  for (const p of parts) { ctx.fillStyle = '#ffd640'; ctx.fillRect(p.x - 4, p.y - 4, 8, 8); }
+  // basket
+  ctx.fillStyle = rich ? '#c41c83' : '#787882';
+  ctx.beginPath(); ctx.moveTo(px - 62, 930); ctx.lineTo(px + 62, 930);
+  ctx.lineTo(px + 48, 964); ctx.lineTo(px - 48, 964); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = rich ? '#fff' : '#5a5a64'; ctx.fillRect(px - 66, 922, 132, 12);
+  for (const f of floats) { ctx.fillStyle = '#fff'; ctx.font = 'bold 30px sans-serif'; ctx.fillText(f.text, f.x - 20, f.y); }
+  if (rich) {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 576, 150);
+    ctx.fillStyle = '#ffd640'; ctx.font = 'bold 44px sans-serif'; ctx.fillText('SCORE  ' + score, 24, 58);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('COMBO x' + Math.max(1, combo) + '   CAUGHT ' + caught, 24, 96);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(330, 26, 222, 28);
+    ctx.fillStyle = '#c41c83'; ctx.fillRect(333, 29, 216 * Math.min(1, caught / 24), 22);
+    ctx.fillStyle = '#40e0ff'; ctx.font = 'bold 24px sans-serif'; ctx.fillText('DAY 7  •  UPDATE #7', 24, 130);
+  } else {
+    ctx.fillStyle = '#aaafbe'; ctx.font = '30px sans-serif'; ctx.fillText('score ' + score, 24, 54);
+    ctx.font = 'bold 30px sans-serif'; ctx.fillText('DAY 1', 426, 54);
+  }
+}
+cv.addEventListener('mousemove', e => {
+  const r = cv.getBoundingClientRect();
+  px = Math.max(70, Math.min(506, (e.clientX - r.left) * 576 / r.width));
+});
+addEventListener('keydown', e => {
+  if (e.key === '1') { rich = false; score = 0; combo = 0; caught = 0; items = []; }
+  if (e.key === '7') { rich = true; score = 0; combo = 0; caught = 0; items = []; }
+  if (e.key === 'ArrowLeft') px = Math.max(70, px - 24);
+  if (e.key === 'ArrowRight') px = Math.min(506, px + 24);
+});
+let last = performance.now();
+(function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  px = 288 + 180 * Math.sin(t * 0.9); // the camera stays still; the basket drifts on its own
+  step(dt); draw();
+  requestAnimationFrame(loop);
+})(last);
+</script>
+</body>
+</html>
